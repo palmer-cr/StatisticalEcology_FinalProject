@@ -1,0 +1,507 @@
+### R code for Chad Palmer's Final Project: Statistical Ecology, Fall 2023
+#Simulating Oyster Count Data
+#Density-Salinity-Wave: separate mu's for each
+#Low difference model
+
+install.packages('sjPlot')
+install.packages('sjmisc')
+library(sjPlot)
+library(sjmisc)
+library(ggplot2)
+
+x <- seq(0, 25, 0.001) 
+xo <- 9
+L <- 0.4
+k <- 1
+y <- vector(length = length(x))
+y[] <- L/(1+exp((-1*k)*(x-xo)))
+plot(x, y, type = "l", col = "red", lwd = 2, ylim = c(0,1))
+
+xo2 <- 12
+L2 <- 1
+k2 <- 0.461
+y2 <- vector(length = length(x))
+y2[] <- L2/(1+exp((-1*k2)*(x-xo2)))
+
+d <- vector(length = length(x))
+d2 <- vector(length = length(x))
+d[1] <- 0
+d[2] <- 0
+for(i in 2:length(x)){
+ d[i] <- (y[i] - y[i-1]) * 8000
+ d2[i] <- (y2[i] - y2[i-1]) * 8000
+}
+
+plot(x, y, type = "l", col = "red", lwd = 2, ylim = c(0,1))
+lines(x, d, col="orange", lwd = 2)
+abline(v = xo, col = "black", lwd = 2)
+
+plot(x,y2,col="blue", lwd = 2, ylim = c(0,1))
+lines(x, d2, col="purple", lwd = 2)
+abline(v = xo, col = "black", lwd = 2)
+
+##################################### Data Simulation ###########################################
+muSite1L <- 5
+muSite1H <- 7
+muSite2L <- 7 
+muSite2H <- 9
+muSite3L <- 11
+muSite3H <- 17
+muSite4L <- 2
+muSite4H <- 6
+nSamp <- 6
+
+SiteNum <- as.factor(c(rep(1, nSamp*2), rep(2, nSamp*2), rep(3, nSamp*2), rep(4, nSamp*2), rep(5, nSamp*2), rep(6, nSamp*2), rep(7, nSamp*2), rep(8, nSamp*2)))
+levels(SiteNum) <- c("1L", "1H", "2L", "2H", "3L", "3H", "4L", "4H")
+
+Salinity <- as.factor(c(rep(1,nSamp*4), rep(2,nSamp*4)))
+levels(Salinity) <- c("L", "H")
+
+Wave <- as.factor(rep(c(rep(1,nSamp*2), rep(2,nSamp*2)),2))
+levels(Wave) <- c("L", "H")
+
+reefDens <- as.factor(rep(c(rep(1,nSamp), rep(2,nSamp)),4))
+levels(reefDens) <- c("L", "H")
+
+simSite1L <- rpois(n=nSamp, lambda = muSite1L)
+simSite1H <- rpois(n=nSamp, lambda = muSite1H)
+simSite2L <- rpois(n=nSamp, lambda = muSite2L)
+simSite2H <- rpois(n=nSamp, lambda = muSite2H)
+simSite3L <- rpois(n=nSamp, lambda = muSite3L)
+simSite3H <- rpois(n=nSamp, lambda = muSite3H)
+simSite4L <- rpois(n=nSamp, lambda = muSite4L)
+simSite4H <- rpois(n=nSamp, lambda = muSite4H)
+
+y <- c(simSite1L, simSite1H, simSite2L, simSite2H, simSite3L, simSite3H, simSite4L, simSite4H)
+
+simData <- data.frame(Site_Number=SiteNum, Salinity=Salinity, Wave_Energy=Wave, Reef_Density=reefDens, y=y)
+
+boxplot(y~Reef_Density:Wave_Energy:Salinity,data=simData)
+#################################  BICs  ######################################################
+B <- 10000
+BICMo <- vector(length = B)
+BICM1 <- vector(length = B)
+BICM2 <- vector(length = B)
+BICM3 <- vector(length = B)
+BICM4 <- vector(length = B)
+BICM5 <- vector(length = B)
+BICM6 <- vector(length = B)
+BICM7 <- vector(length = B)
+
+for(i in 1:B){
+  nullModel <- aov(formula=y~1, data=simData)
+  reefDensModel <- aov(formula=y~Reef_Density, data=simData)
+  waveModel <- aov(formula=y~Reef_Density+Reef_Density:Wave_Energy, data=simData)
+  salinityModel <- aov(formula=y~Reef_Density+Reef_Density:Salinity, data=simData)
+  fullModel <- aov(formula=y~Reef_Density+Reef_Density:Salinity+Reef_Density:Wave_Energy, data=simData)
+  fullerModel <- aov(formula=y~Reef_Density+Salinity+Wave_Energy+Reef_Density:Salinity+Reef_Density:Wave_Energy, data=simData)
+  fullestModel <- aov(formula=y~Reef_Density+Salinity+Wave_Energy+Reef_Density:Salinity+Reef_Density:Wave_Energy+Reef_Density:Wave_Energy:Salinity, data=simData)
+  anEvenMoreFullModelThanThat <- aov(formula=y~Reef_Density+Salinity+Wave_Energy+Reef_Density:Salinity+Reef_Density:Wave_Energy+Reef_Density:Wave_Energy:Salinity+Wave_Energy:Salinity, data=simData)
+  
+  summary(nullModel)
+  summary(reefDensModel)
+  summary(waveModel)
+  summary(salinityModel)
+  summary(fullModel)
+  summary(fullerModel)
+  summary(fullestModel)
+  summary(anEvenMoreFullModelThanThat)
+  
+  BICMo[i] <- BIC(nullModel)
+  BICM1[i] <- BIC(reefDensModel)
+  BICM2[i] <- BIC(waveModel)
+  BICM3[i] <- BIC(salinityModel)
+  BICM4[i] <- BIC(fullModel)
+  BICM5[i] <- BIC(fullerModel)
+  BICM6[i] <- BIC(fullestModel)
+  BICM7[i] <- BIC(anEvenMoreFullModelThanThat)
+}
+
+mean(BICMo)
+mean(BICM1)
+mean(BICM2)
+mean(BICM3)
+mean(BICM4)
+mean(BICM5)
+mean(BICM6)
+mean(BICM7)
+
+par(las=1, cex = 0.9)
+salWave<-aov(formula=y~Salinity:Wave_Energy, data=simData)
+plot(TukeyHSD(salWave))
+siteModel <- aov(formula=y~Site_Number, data=simData)
+plot(TukeyHSD(siteModel))
+####################################### ANOVA by Hand #######################################
+lnLo <- function(data){
+  lambda.hat <- mean(data$y)
+  
+  llike0 <- dpois(x=data$y, lambda=lambda.hat, log=TRUE)
+  return(sum(llike0))
+}
+
+lnL1 <- function(data){ #Density Only Model
+  highDens <- data$y[data$Reef_Density == 'H']
+  lowDens <- data$y[data$Reef_Density == 'L']
+  lambdaHigh.hat <- mean(highDens)
+  lambdaLow.hat <- mean(lowDens)
+  
+  llike1 <- dpois(x=highDens, lambda=lambdaHigh.hat, log=TRUE)
+  llike2 <- dpois(x=lowDens, lambda=lambdaLow.hat, log=TRUE)
+  return(sum(c(llike1, llike2)))
+}
+
+lnL2_3 <- function(HH, HL, LH, LL){ #Density and (Salinity or Wave Energy) Model
+  
+  lambdaHH.hat <- mean(HH)
+  lambdaHL.hat <- mean(HL)
+  lambdaLH.hat <- mean(LH)
+  lambdaLL.hat <- mean(LL)
+  
+  llike1 <- dpois(x=HH, lambda=lambdaHH.hat, log=TRUE)
+  llike2 <- dpois(x=HL, lambda=lambdaHL.hat, log=TRUE)
+  llike3 <- dpois(x=LH, lambda=lambdaLH.hat, log=TRUE)
+  llike4 <- dpois(x=LL, lambda=lambdaLL.hat, log=TRUE)
+  return(sum(c(llike1, llike2, llike3, llike4)))
+}
+
+lnL4 <- function(HHH, HHL, HLH, HLL, LHH, LHL, LLH, LLL){ #Density, Salinity, Wave Energy Model
+  
+  lambdaHHH.hat <- mean(HHH)
+  lambdaHHL.hat <- mean(HHL)
+  lambdaHLH.hat <- mean(HLH)
+  lambdaHLL.hat <- mean(HLL)
+  lambdaLHH.hat <- mean(LHH)
+  lambdaLHL.hat <- mean(LHL)
+  lambdaLLH.hat <- mean(LLH)
+  lambdaLLL.hat <- mean(LLL)
+  
+  llike1 <- dpois(x=HHH, lambda=lambdaHHH.hat, log=TRUE)
+  llike2 <- dpois(x=HHL, lambda=lambdaHHL.hat, log=TRUE)
+  llike3 <- dpois(x=HLH, lambda=lambdaHLH.hat, log=TRUE)
+  llike4 <- dpois(x=HLL, lambda=lambdaHLL.hat, log=TRUE)
+  llike5 <- dpois(x=LHH, lambda=lambdaLHH.hat, log=TRUE)
+  llike6 <- dpois(x=LHL, lambda=lambdaLHL.hat, log=TRUE)
+  llike7 <- dpois(x=LLH, lambda=lambdaLLH.hat, log=TRUE)
+  llike8 <- dpois(x=LLL, lambda=lambdaLLL.hat, log=TRUE)
+  return(sum(c(llike1, llike2, llike3, llike4, llike5, llike6, llike7, llike8)))
+}
+B <- 10000
+maxSamp <- 6
+
+M1pval <- rep(0, maxSamp)
+M2pval <- rep(0, maxSamp)
+M3pval <- rep(0, maxSamp)
+M4pval <- rep(0, maxSamp)
+
+for(q in 1:maxSamp){
+  pvalueM1 <- rep(0,B)
+  pvalueM2 <- rep(0,B)
+  pvalueM3 <- rep(0,B)
+  pvalueM4 <- rep(0,B)
+  
+  percentSigPM1 <- rep(0,B)
+  percentSigPM2 <- rep(0,B)
+  percentSigPM3 <- rep(0,B)
+  percentSigPM4 <- rep(0,B)
+  nsamp <- q
+  
+  print(nsamp)
+  
+  Salinity <- as.factor(c(rep(1,nsamp*4), rep(2,nsamp*4)))
+  levels(Salinity) <- c("L", "H")
+  
+  Wave <- as.factor(rep(c(rep(1,nsamp*2), rep(2,nsamp*2)),2))
+  levels(Wave) <- c("L", "H")
+  
+  reefDens <- as.factor(rep(c(rep(1,nsamp), rep(2,nsamp)),4))
+  levels(reefDens) <- c("L", "H")
+  
+  for(k in 1:B){
+    simSite1L <- rpois(n=nsamp, lambda = muSite1L)
+    simSite1H <- rpois(n=nsamp, lambda = muSite1H)
+    simSite2L <- rpois(n=nsamp, lambda = muSite2L)
+    simSite2H <- rpois(n=nsamp, lambda = muSite2H)
+    simSite3L <- rpois(n=nsamp, lambda = muSite3L)
+    simSite3H <- rpois(n=nsamp, lambda = muSite3H)
+    simSite4L <- rpois(n=nsamp, lambda = muSite4L)
+    simSite4H <- rpois(n=nsamp, lambda = muSite4H)
+    
+    y <- c(simSite1L, simSite1H, simSite2L, simSite2H, simSite3L, simSite3H, simSite4L, simSite4H)
+    simData <- data.frame(Salinity=Salinity, Wave_Energy=Wave, Reef_Density=reefDens, y=y)
+    
+    densSalHH <- rep(NA,length(simData$y))
+    densSalHL <- rep(NA,length(simData$y))
+    densSalLH <- rep(NA,length(simData$y))
+    densSalLL <- rep(NA,length(simData$y))
+    densWaveHH <- rep(NA,length(simData$y))
+    densWaveHL <- rep(NA,length(simData$y))
+    densWaveLH <- rep(NA,length(simData$y))
+    densWaveLL <- rep(NA,length(simData$y))
+    
+    FullHHH <- rep(NA,length(simData$y))
+    FullHHL <- rep(NA,length(simData$y))
+    FullHLH <- rep(NA,length(simData$y))
+    FullHLL <- rep(NA,length(simData$y))
+    FullLHH <- rep(NA,length(simData$y))
+    FullLHL <- rep(NA,length(simData$y))
+    FullLLH <- rep(NA,length(simData$y))
+    FullLLL <- rep(NA,length(simData$y))
+    
+    for(i in 1:length(simData$y)){
+      if(simData$Reef_Density[i]=='H'){
+        if(simData$Salinity[i]=='H'){
+          densSalHH[i] <- simData$y[i]
+        }else{
+          densSalHL[i] <- simData$y[i]
+        }
+        if(simData$Wave_Energy[i]=='H'){
+          densWaveHH[i] <- simData$y[i]
+        }else{
+          densWaveHL[i] <- simData$y[i]
+        }
+      }else{
+        if(simData$Salinity[i]=='H'){
+          densSalLH[i] <- simData$y[i]
+        }else{
+          densSalLL[i] <- simData$y[i]
+        }
+        if(simData$Wave_Energy[i]=='H'){
+          densWaveLH[i] <- simData$y[i]
+        }else{
+          densWaveLL[i] <- simData$y[i]
+        }
+      }
+    }
+    for(i in 1:length(simData$y)){
+      if(simData$Reef_Density[i]=='H'){
+        if(simData$Salinity[i]=='H'){
+          if(simData$Wave_Energy[i]=='H'){
+            FullHHH[i] = simData$y[i]
+          } else{
+            FullHHL[i] = simData$y[i]
+          }
+        } else{
+          if(simData$Wave_Energy[i]=='H'){
+            FullHLH[i] = simData$y[i]
+          } else{
+            FullHLL[i] = simData$y[i]
+          }
+        }
+      } else{
+        if(simData$Salinity[i]=='H'){
+          if(simData$Wave_Energy[i]=='H'){
+            FullLHH[i] = simData$y[i]
+          } else{
+            FullLHL[i] = simData$y[i]
+          }
+        } else{
+          if(simData$Wave_Energy[i]=='H'){
+            FullLLH[i] = simData$y[i]
+          } else{
+            FullLLL[i] = simData$y[i]
+          }
+        }
+      }
+    }
+    densSalHH <- densSalHH[!is.na(densSalHH)]
+    densSalHL <- densSalHL[!is.na(densSalHL)]
+    densSalLH <- densSalLH[!is.na(densSalLH)]
+    densSalLL <- densSalLL[!is.na(densSalLL)]
+    densWaveHH <- densWaveHH[!is.na(densWaveHH)]
+    densWaveHL <- densWaveHL[!is.na(densWaveHL)]
+    densWaveLH <- densWaveLH[!is.na(densWaveLH)]
+    densWaveLL <- densWaveLL[!is.na(densWaveLL)]
+    
+    FullHHH <- FullHHH[!is.na(FullHHH)]
+    FullHHL <- FullHHL[!is.na(FullHHL)]
+    FullHLH <- FullHLH[!is.na(FullHLH)]
+    FullHLL <- FullHLL[!is.na(FullHLL)]
+    FullLHH <- FullLHH[!is.na(FullLHH)]
+    FullLHL <- FullLHL[!is.na(FullLHL)]
+    FullLLH <- FullLLH[!is.na(FullLLH)]
+    FullLLL <- FullLLL[!is.na(FullLLL)]
+    
+    lnLo.hat <- lnLo(simData)
+    lnL1.hat <- lnL1(simData)
+    lnL2.hat <- lnL2_3(densSalHH, densSalHL, densSalLH, densSalLL)
+    lnL3.hat <- lnL2_3(densWaveHH, densWaveHL, densWaveLH, densWaveLL)
+    lnL4.hat <- lnL4(FullHHH, FullHHL, FullHLH, FullHLL, FullLHH, FullLHL, FullLLH, FullLLL)
+    
+    Gsq.obsM1 <- -2*(lnLo.hat-lnL1.hat)
+    Gsq.obsM2 <- -2*(lnLo.hat-lnL2.hat)
+    Gsq.obsM3 <- -2*(lnLo.hat-lnL3.hat)
+    Gsq.obsM4 <- -2*(lnLo.hat-lnL4.hat)
+    alpha <- 0.05
+    numTests <- 4
+    alphaB <- alpha/numTests
+    
+    dfs1 <- 1
+    dfs2_3 <- 3
+    dfs4 <- 7
+    
+    Gsq.critM1 <- qchisq(p=1-alpha, df=dfs1)
+    Gsq.critM2_3 <- qchisq(p=1-alpha, df=dfs2_3)
+    Gsq.critM4 <- qchisq(p=1-alpha, df=dfs4)
+    
+    pvM1Temp <- 1-pchisq(q=Gsq.obsM1, df=dfs1)
+    pvM2Temp <- 1-pchisq(q=Gsq.obsM2, df=dfs2_3)
+    pvM3Temp <- 1-pchisq(q=Gsq.obsM3, df=dfs2_3)
+    pvM4Temp <- 1-pchisq(q=Gsq.obsM4, df=dfs4)
+    
+    pvalueM1[k] <- pvM1Temp
+    pvalueM2[k] <- pvM2Temp
+    pvalueM3[k] <- pvM3Temp
+    pvalueM4[k] <- pvM4Temp
+    
+    if(pvalueM1[k]>=0.001){
+      percentSigPM1[k] <- 0
+    }else{
+      percentSigPM1[k] <- 1
+    }
+    
+    if(pvalueM2[k]>=0.001){
+      percentSigPM2[k] <- 0
+    }else{
+      percentSigPM2[k] <- 1
+    }
+    
+    if(pvalueM3[k]>=0.001){
+      percentSigPM3[k] <- 0
+    }else{
+      percentSigPM3[k] <- 1
+    }
+    
+    if(pvalueM4[k]>=0.001){
+      percentSigPM4[k] <- 0
+    }else{
+      percentSigPM4[k] <- 1
+    }
+  }
+  
+  M1pval[nsamp] <- mean(percentSigPM1)
+  M2pval[nsamp] <- mean(percentSigPM2)
+  M3pval[nsamp] <- mean(percentSigPM3)
+  M4pval[nsamp] <- mean(percentSigPM4)
+}
+xp <- seq(1:6)
+
+plot(xp, 1-M1pval, pch=19, col="purple", ylim = c(0,1), xlab = "", ylab = "")
+points(xp, 1-M2pval, pch=19, col="blue")
+points(xp, 1-M3pval, pch=19, col="green")
+points(xp, 1-M4pval, pch=19, col="red")
+legend(x=5.4, y=0.98,legend = c("M1", "M2", "M3", "M4"), col = c("purple", "blue", "green", "red"), pch=19)
+Chisq.samp1 <- rchisq(n=100000, df=dfs1)
+Chisq.samp2_3 <- rchisq(n=100000, df=dfs2_3)
+Chisq.samp4 <- rchisq(n=100000, df=dfs4)
+
+hist(Chisq.samp1, main = "Model 1 Significance", xlab = "Chi-Square Sample")
+abline(v=Gsq.obsM1, col="blue", lwd = 2)
+abline(v=Gsq.critM1, col="red", lwd = 2)
+legend("topright", inset = 0.02, legend=c("Obseved Value", "Significance Threshold"),
+       col=c("blue", "red"), lwd = 2)
+mtext(paste("P-Value:",pvalueM1,sep = " "), side = 3, line = 0)
+
+hist(Chisq.samp2_3, main = "Model 1 Significance", xlab = "Chi-Square Sample")
+abline(v=Gsq.obsM2, col="blue", lwd = 2)
+abline(v=Gsq.critM2_3, col="red", lwd = 2)
+legend("topright", inset = 0.02, legend=c("Obseved Value", "Significance Threshold"),
+       col=c("blue", "red"), lwd = 2)
+mtext(paste("P-Value:",pvalueM2,sep = " "), side = 3, line = 0)
+
+hist(Chisq.samp2_3, main = "Model 1 Significance", xlab = "Chi-Square Sample")
+abline(v=Gsq.obsM3, col="blue", lwd = 2)
+abline(v=Gsq.critM2_3, col="red", lwd = 2)
+legend("topright", inset = 0.02, legend=c("Obseved Value", "Significance Threshold"),
+       col=c("blue", "red"), lwd = 2)
+mtext(paste("P-Value:",pvalueM3,sep = " "), side = 3, line = 0)
+
+hist(Chisq.samp4, main = "Model 1 Significance", xlab = "Chi-Square Sample")
+abline(v=Gsq.obsM4, col="blue", lwd = 2)
+abline(v=Gsq.critM4, col="red", lwd = 2)
+legend("topright", inset = 0.02, legend=c("Obseved Value", "Significance Threshold"),
+       col=c("blue", "red"), lwd = 2)
+mtext(paste("P-Value:",pvalueM4,sep = " "), side = 3, line = 0)
+#############################ANOVA by Hand###################################################
+ssqs.fun <- function(my.data){
+  ni  <- dim(my.data)[1]
+  g   <- dim(my.data)[2]
+  nT  <- ni*g
+  allxs    <- as.vector(my.data)
+  xbar     <- mean(allxs)
+  xbari.vec<- apply(my.data,2,FUN=mean)
+  TSS <- (nT - 1)*var(allxs)
+  SSB <- sum( ni*(xbari.vec-rep(xbar,g))^2 )
+  SSW <- TSS-SSB
+  
+  Stot.sq <- TSS/(nT-1)
+  Sw.sq <- SSW/(nT-g)
+  Sb.sq <- SSB/(g-1)
+  Fval <- Sb.sq/Sw.sq
+  pval <- 1-pf(q=Fval,df1=(g-1),df2 = (nT-g))
+  
+  return(list(TSS=TSS, SSB=SSB,SSW=SSW, Stot.sq=Stot.sq,Sw.sq=Sw.sq,Sb.sq=Sb.sq,Fval=Fval,pval=pval,df1=(g-1), df2 = (nT-g)))
+}
+
+allTSS <- vector(length = B)
+allSSB <- vector(length = B)
+allSSW <- vector(length = B)
+allStot.sq <- vector(length = B)
+allSw.sq <- vector(length = B)
+allSb.sq <- vector(length = B)
+allFval <- vector(length = B)
+allPval <- vector(length = B)
+
+for(i in 1:B){
+  simSite1L <- rpois(n=nSamp, lambda = muSite1L)
+  simSite1H <- rpois(n=nSamp, lambda = muSite1H)
+  simSite2L <- rpois(n=nSamp, lambda = muSite2L)
+  simSite2H <- rpois(n=nSamp, lambda = muSite2H)
+  simSite3L <- rpois(n=nSamp, lambda = muSite3L)
+  simSite3H <- rpois(n=nSamp, lambda = muSite3H)
+  simSite4L <- rpois(n=nSamp, lambda = muSite4L)
+  simSite4H <- rpois(n=nSamp, lambda = muSite4H)
+  
+  longData <- cbind(simSite1L, simSite1H, simSite2L, simSite2H, simSite3L, simSite3H, simSite4L, simSite4H)
+  
+  ssqsByHand <- ssqs.fun(longData)
+  
+  allTSS[i] <- ssqsByHand$TSS
+  allSSB[i] <- ssqsByHand$SSB
+  allSSW[i] <- ssqsByHand$SSW
+  allStot.sq[i] <- ssqsByHand$Stot.sq
+  allSw.sq[i] <- ssqsByHand$Sw.sq
+  allSb.sq[i] <- ssqsByHand$Sb.sq
+  allFval[i] <- ssqsByHand$Fval
+  allPval[i] <- ssqsByHand$pval
+}
+
+mean(allTSS)
+mean(allSSB)
+mean(allSSW)
+mean(allStot.sq)
+mean(allSw.sq)
+mean(allSb.sq)
+mean(allFval)
+mean(allPval)
+
+######################################### Linear Model ############################################
+lM1 <- lm(y~Reef_Density, data = simData) #Density
+lM2 <- lm(y~Reef_Density+Reef_Density:Wave_Energy, data=simData) #Density, Dens:Salinity
+lM3 <- lm(y~Reef_Density+Reef_Density:Salinity, data=simData) #Density, Dens: Wave
+lM4 <- lm(y~Reef_Density+Reef_Density:Salinity+Reef_Density:Wave_Energy, data=simData) #Den, Dens:Sal, Dens:Wave
+lM5 <- lm(y~Reef_Density+Salinity+Wave_Energy+Reef_Density:Salinity+Reef_Density:Wave_Energy, data=simData) #Dens, Wave, Sal, Dens:Sal, Dens:Wave
+lM6 <- lm(y~Reef_Density+Salinity+Wave_Energy+Reef_Density:Salinity+Reef_Density:Wave_Energy+Reef_Density:Wave_Energy:Salinity, data=simData) #Dens, Wave, Sal, Dens:Sal, Dens:Wave, Dens:Wave:Sal
+lM7 <- lm(y~Reef_Density+Salinity+Wave_Energy+Reef_Density:Salinity+Reef_Density:Wave_Energy+Reef_Density:Wave_Energy:Salinity+Wave_Energy:Salinity, data=simData) #Dens, Wave, Sal, Dens:Sal, Dens:Wave, Sal:Wave, Dens:Wave:Sal
+
+reducedModel <- step(lM4, direction = "backward")
+summary(reducedModel)
+
+plot(lM4)
+
+interaction.plot(simData$Reef_Density, simData$Salinity, simData$y)
+interaction.plot(simData$Reef_Density, simData$Wave_Energy, simData$y)
+interaction.plot(simData$Reef_Density, simData$Wave_Energy:simData$Salinity, simData$y, col = c("red", "blue", "green", "purple"),
+                 lty = 1, lwd = 2, xlab = "", ylab = "")
+
+theme_set(theme_sjplot())
+plot_model(lM5, type = "pred", terms = c("Reef_Density", "Salinity"))
